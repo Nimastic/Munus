@@ -1,10 +1,10 @@
 "use client";
 
 import { wagmiConfig } from "@/lib/wagmi";
+import { CivicAuthProvider } from "@civic/auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode } from "react";
 import { WagmiProvider } from "wagmi";
-import { CivicAuthProvider } from "@civic/auth/react";
 
 const queryClient = new QueryClient();
 

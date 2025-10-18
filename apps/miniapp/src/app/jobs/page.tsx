@@ -2,7 +2,7 @@
 
 import { EnsBadge } from "@/components/EnsBadge";
 import { ESCROW_ADDRESS, escrowAbi, formatAmount, JobState, JobStateLabels, publicClient } from "@/lib/contracts";
-import { UserButton } from "@civic/auth-web3/react";
+import { UserButton } from "@civic/auth/react";
 import { AlertCircle, Clock, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";

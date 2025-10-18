@@ -61,14 +61,16 @@ packages/agent/db
 *~
 .cursor
 
-# Documentation/Instructions (keep in repo)
-# PRD.md
-# Documentations for Sponsors.md
-# Documentation Link.md
-# Prizes and Bounty Information.md
-
-# Temporary troubleshooting files
+# Hackathon-specific files (not part of core project)
+PRD.md
+Documentations for Sponsors.md
+Documentation Link.md
+Prizes and Bounty Information.md
+BOUNTY_COMPLIANCE.md
 CIVIC_TROUBLESHOOTING.md
+CIVIC_DECISION.md
+CIVIC_IMPLEMENTATION.md
+WALLET_GUIDE.md
 
 # API Keys & Secrets (IMPORTANT!)
 *.key
@@ -79,5 +81,12 @@ CIVIC_TROUBLESHOOTING.md
 .env*
 !.env.example
 !.env.local.example
-
-*.md
+SETUP.md
+workflows/calimero/README.md
+PROJECT_STATUS.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+packages/agent/README.md
+docs/DEPLOYMENT.md
+docs/ARCHITECTURE.md
+checklist.md

@@ -1,6 +1,7 @@
 "use client";
 
 import { EnsBadge } from "@/components/EnsBadge";
+import { UserButton, useUser } from "@civic/auth/react";
 import { MessageSquare, Shield, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
@@ -9,6 +10,7 @@ export default function Home() {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+  const { user } = useUser();
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -19,21 +21,26 @@ export default function Home() {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg" />
             <h1 className="text-xl font-bold">Munus</h1>
           </div>
-          {isConnected ? (
-            <button
-              onClick={() => disconnect()}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Disconnect
-            </button>
-          ) : (
-            <button
-              onClick={() => connect({ connector: connectors[0] })}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Connect Wallet
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {/* Civic Auth Button */}
+            <UserButton />
+            {/* Wallet Connect Button */}
+            {isConnected ? (
+              <button
+                onClick={() => disconnect()}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Disconnect Wallet
+              </button>
+            ) : user ? (
+              <button
+                onClick={() => connect({ connector: connectors[0] })}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Connect Wallet
+              </button>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -48,16 +55,64 @@ export default function Home() {
             smart contracts handle the money.
           </p>
 
-          {isConnected && address ? (
-            <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
-              <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+          {!user ? (
+            /* Step 1: Login with Civic */
+            <div className="bg-white rounded-xl shadow-lg p-8 space-y-4">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Shield className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-semibold">Step 1: Login with Civic</h2>
+              </div>
+              <p className="text-gray-600">
+                Sign in with Civic to get started. Civic is our ONLY SSO provider (bounty requirement!)
+              </p>
+              <div className="flex justify-center pt-4">
+                <UserButton />
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                ✅ Civic Auth ensures secure, compliant authentication
+              </p>
+            </div>
+          ) : !isConnected ? (
+            /* Step 2: Connect Wallet */
+            <div className="bg-white rounded-xl shadow-lg p-8 space-y-4">
+              <div className="flex items-center justify-center gap-2 text-sm text-green-600 mb-4">
                 <Shield className="w-4 h-4" />
-                <span>Wallet Connected</span>
+                <span>✓ Logged in with Civic (only SSO)</span>
+              </div>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Wallet className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-semibold">Step 2: Connect Wallet</h2>
+              </div>
+              <p className="text-gray-600">
+                Now connect your Web3 wallet for transactions. Use MetaMask, Coinbase Wallet, or any Web3 wallet!
+              </p>
+              <button
+                onClick={() => connect({ connector: connectors[0] })}
+                className="w-full px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              >
+                Connect Wallet
+              </button>
+              <p className="text-xs text-gray-500 text-center">
+                💡 Make sure you're on <strong>Base Sepolia</strong> testnet
+              </p>
+            </div>
+          ) : (
+            /* Step 3: Ready to Use */
+            <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                  <Shield className="w-4 h-4" />
+                  <span>✓ Logged in with Civic (only SSO)</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-green-600">
+                  <Wallet className="w-4 h-4" />
+                  <span>✓ Wallet connected</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-center gap-2 p-4 bg-blue-50 rounded-lg">
                 <Wallet className="w-5 h-5 text-blue-600" />
-                <EnsBadge address={address} />
+                <EnsBadge address={address!} />
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -77,23 +132,8 @@ export default function Home() {
                 </Link>
               </div>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 text-center">
                 Your funds are secured in escrow on Base. No counterparty risk! 🔐
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-lg p-8 space-y-4">
-              <p className="text-gray-600">
-                Connect your wallet to get started. Use MetaMask, Coinbase Wallet, or any Web3 wallet!
-              </p>
-              <button
-                onClick={() => connect({ connector: connectors[0] })}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Connect Wallet
-              </button>
-              <p className="text-xs text-gray-500">
-                💡 Make sure you're on <strong>Base Sepolia</strong> testnet
               </p>
             </div>
           )}

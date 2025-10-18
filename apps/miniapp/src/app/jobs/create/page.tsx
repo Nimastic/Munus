@@ -1,7 +1,7 @@
 "use client";
 
 import { CHAIN, DEFAULT_USDC, ESCROW_ADDRESS, escrowAbi } from "@/lib/contracts";
-import { UserButton } from "@civic/auth-web3/react";
+import { UserButton } from "@civic/auth/react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";

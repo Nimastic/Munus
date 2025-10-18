@@ -10,7 +10,7 @@ import {
     publicClient,
     toBytes32,
 } from "@/lib/contracts";
-import { UserButton } from "@civic/auth-web3/react";
+import { UserButton } from "@civic/auth/react";
 import Link from "link";
 import { ArrowLeft, Ban, CheckCircle2, Clock, Loader2, Send } from "lucide-react";
 import { use, useEffect, useState } from "react";
