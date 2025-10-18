@@ -2,18 +2,18 @@
 
 import { EnsBadge } from "@/components/EnsBadge";
 import {
-    ESCROW_ADDRESS,
-    escrowAbi,
-    formatAmount,
-    JobState,
-    JobStateLabels,
-    publicClient,
-    toBytes32,
+  ESCROW_ADDRESS,
+  escrowAbi,
+  formatAmount,
+  JobState,
+  JobStateLabels,
+  publicClient,
+  toBytes32,
 } from "@/lib/contracts";
 import { UserButton } from "@civic/auth/react";
-import Link from "link";
 import { ArrowLeft, Ban, CheckCircle2, Clock, Loader2, Send } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { type Address } from "viem";
 import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
@@ -33,10 +33,9 @@ interface Job {
 export default function JobDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }) {
-  const resolvedParams = use(params);
-  const jobId = parseInt(resolvedParams.id);
+  const jobId = parseInt(params.id);
   const { address } = useAccount();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +44,26 @@ export default function JobDetailPage({
   const [artifactHash, setArtifactHash] = useState("");
   const [attestationCID, setAttestationCID] = useState("");
   const [showDeliverForm, setShowDeliverForm] = useState(false);
+  const [deliveryText, setDeliveryText] = useState("");
+
+  // Generate hash from text
+  async function generateHash(text: string) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return '0x' + hashHex;
+  }
+
+  async function handleGenerateHash() {
+    if (!deliveryText) {
+      alert("Please enter your delivery description first");
+      return;
+    }
+    const hash = await generateHash(deliveryText);
+    setArtifactHash(hash);
+  }
 
   const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
@@ -93,8 +112,8 @@ export default function JobDetailPage({
   }
 
   function handleDeliver() {
-    if (!artifactHash || !attestationCID) {
-      alert("Please provide both artifact hash and attestation CID");
+    if (!artifactHash) {
+      alert("Please provide an artifact hash (proof of work)");
       return;
     }
 
@@ -102,7 +121,7 @@ export default function JobDetailPage({
       address: ESCROW_ADDRESS,
       abi: escrowAbi,
       functionName: "deliver",
-      args: [BigInt(jobId), toBytes32(artifactHash), attestationCID],
+      args: [BigInt(jobId), toBytes32(artifactHash), attestationCID || ""],
     });
   }
 
@@ -306,21 +325,64 @@ export default function JobDetailPage({
           )}
 
           {showDeliverForm && (
-            <div className="mb-4 space-y-3 p-4 bg-blue-50 rounded-lg">
-              <input
-                type="text"
-                placeholder="Artifact Hash (0x... or CID)"
-                value={artifactHash}
-                onChange={(e) => setArtifactHash(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-              <input
-                type="text"
-                placeholder="Attestation CID (from Calimero workflow)"
-                value={attestationCID}
-                onChange={(e) => setAttestationCID(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
+            <div className="mb-4 space-y-4 p-4 bg-blue-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Delivery Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  placeholder="Describe what you delivered (e.g., links, file names, summary of work...)"
+                  value={deliveryText}
+                  onChange={(e) => setDeliveryText(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleGenerateHash}
+                    type="button"
+                    className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700"
+                  >
+                    🔐 Generate Hash
+                  </button>
+                  <p className="text-xs text-gray-600 self-center">
+                    Click to create cryptographic proof of your delivery
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Artifact Hash <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Generated hash will appear here..."
+                  value={artifactHash}
+                  onChange={(e) => setArtifactHash(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  required
+                  readOnly={!!artifactHash}
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  {artifactHash ? "✅ Hash generated! This is cryptographic proof of your delivery." : "💡 Or manually enter an IPFS CID (QmTest123...)"}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Attestation CID <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="QmAttestation789 (from Calimero - leave empty for now)"
+                  value={attestationCID}
+                  onChange={(e) => setAttestationCID(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-600 mt-1">
+                  Advanced: Proof from Calimero verified computation (optional)
+                </p>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowDeliverForm(false)}

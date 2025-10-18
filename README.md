@@ -105,6 +105,12 @@ cd Munus
 pnpm install
 ```
 
+### Deployed Contract
+
+**Base Sepolia Testnet:**
+- Contract: `0x265B042A62f92E073cf086017fBF53238CF4DcCe`
+- Explorer: https://sepolia.basescan.org/address/0x265B042A62f92E073cf086017fBF53238CF4DcCe
+
 ### Environment Setup
 
 Create environment files:
@@ -126,9 +132,12 @@ Edit with your values:
 # apps/miniapp/.env.local
 NEXT_PUBLIC_CIVIC_CLIENT_ID=your_civic_client_id
 NEXT_PUBLIC_CHAIN_ID=84532
-NEXT_PUBLIC_ESCROW_ADDRESS=deployed_contract_address
-NEXT_PUBLIC_MAINNET_RPC=your_eth_mainnet_rpc
+NEXT_PUBLIC_ESCROW_ADDRESS=0x265B042A62f92E073cf086017fBF53238CF4DcCe
+NEXT_PUBLIC_BASE_SEPOLIA_RPC=https://sepolia.base.org
+NEXT_PUBLIC_MAINNET_RPC=https://eth.llamarpc.com
 ```
+
+**Note:** The contract is already deployed to Base Sepolia! Just add your Civic Client ID.
 
 ### Run Development Server
 

@@ -77,6 +77,11 @@ export default function JobsPage() {
   const filteredJobs = jobs.filter((job) => {
     if (filter === "open") return job.state === JobState.Open;
     if (filter === "mine") {
+      console.log("Filtering 'mine':", {
+        jobCreator: job.creator,
+        myAddress: address,
+        match: job.creator.toLowerCase() === address?.toLowerCase()
+      });
       return (
         address &&
         (job.creator.toLowerCase() === address.toLowerCase() ||
@@ -85,6 +90,11 @@ export default function JobsPage() {
     }
     return true;
   });
+
+  console.log("Jobs loaded:", jobs.length);
+  console.log("Filtered jobs:", filteredJobs.length);
+  console.log("Current filter:", filter);
+  console.log("My address:", address);
 
   const getStateColor = (state: JobState) => {
     switch (state) {

@@ -4,6 +4,7 @@ import { EnsBadge } from "@/components/EnsBadge";
 import { UserButton, useUser } from "@civic/auth/react";
 import { MessageSquare, Shield, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export default function Home() {
@@ -11,6 +12,15 @@ export default function Home() {
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
   const { user } = useUser();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null; // Prevent hydration mismatch
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -63,7 +73,7 @@ export default function Home() {
                 <h2 className="text-xl font-semibold">Step 1: Login with Civic</h2>
               </div>
               <p className="text-gray-600">
-                Sign in with Civic to get started. Civic is our ONLY SSO provider (bounty requirement!)
+                Sign in with Civic to get started. Civic is our ONLY SSO provider
               </p>
               <div className="flex justify-center pt-4">
                 <UserButton />

@@ -174,7 +174,8 @@ export default function CreateJobPage() {
               </label>
               <input
                 type="number"
-                min="1"
+                min="0.01"
+                step="0.01"
                 value={deadlineHours}
                 onChange={(e) => setDeadlineHours(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -183,7 +184,7 @@ export default function CreateJobPage() {
                 disabled={step !== "form"}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Job will be auto-refundable if not completed by deadline
+                Job will be auto-refundable if not completed by deadline (min: 0.01 hours = 36 seconds)
               </p>
             </div>
 
