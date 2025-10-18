@@ -1,0 +1,18 @@
+{
+  "name": "@munus/verify",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ed25519 attestation verification scripts",
+  "scripts": {
+    "verify": "node verify-attestation.js"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {
+    "tweetnacl": "^1.0.3",
+    "bs58": "^5.0.0",
+    "@noble/ed25519": "^2.0.0"
+  }
+}
+

@@ -1,0 +1,23 @@
+{
+  "name": "@munus/agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "echo \"Add agent tests\""
+  },
+  "dependencies": {
+    "@xmtp/agent-sdk": "^0.0.3",
+    "viem": "^2.21.45",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
+

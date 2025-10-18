@@ -1,0 +1,21 @@
+{
+  "name": "munus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chat-native, pay-on-delivery jobs (AI × Web3)",
+  "scripts": {
+    "dev": "pnpm --filter miniapp dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter contracts test",
+    "agent": "pnpm --filter agent dev"
+  },
+  "keywords": ["ai", "web3", "xmtp", "civic", "base", "calimero", "ens"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
+
+

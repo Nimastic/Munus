@@ -1,0 +1,106 @@
+name: "Munus Private Job Execution"
+description: "Run a local Calimero app to process job tasks with verifiable attestation"
+
+# Clean states between runs (optional)
+nuke_on_start: false
+nuke_on_end: false
+
+# Enable auth service for protected JSON-RPC (optional)
+auth_service: false
+
+# Log level: trace, debug, info, warn, error
+log_level: "info"
+
+# Force pull latest Docker images
+force_pull_image: false
+
+# Node configuration
+nodes:
+  count: 1
+  prefix: "munus-node"
+  base_port: 2428
+  base_rpc_port: 2528
+  chain_id: "munus-testnet"
+
+# Workflow steps
+steps:
+  # Wait for node startup
+  - name: Wait for startup
+    type: wait
+    seconds: 3
+
+  # Install WASM application
+  # Note: You'll need to build a simple WASM app or use a demo one
+  - name: Install Application
+    type: install
+    node: "munus-node-1"
+    path: "./apps/job_processor.wasm"  # Your WASM app
+    outputs:
+      applicationId: "app_id"
+
+  # Create execution context
+  - name: Create Context
+    type: context
+    node: "munus-node-1"
+    application_id: "{{app_id}}"
+    params:
+      jobId: "{{JOB_ID}}"           # Injected from command line
+      resourceCID: "{{RESOURCE_CID}}" # IPFS CID of job inputs
+    outputs:
+      contextId: "ctx_id"
+      memberPublicKey: "member_key"
+
+  # Execute job processing
+  - name: Process Job
+    type: call
+    node: "munus-node-1"
+    context_id: "{{ctx_id}}"
+    executor_public_key: "{{member_key}}"
+    method: "processJob"
+    args:
+      jobId: "{{JOB_ID}}"
+      inputCID: "{{RESOURCE_CID}}"
+      taskType: "{{TASK_TYPE}}"  # e.g., "parse_invoice", "generate_report"
+    outputs:
+      result: "job_result"
+      outputHash: "job_result.outputHash"
+      success: "job_result.success"
+
+  # Generate signed attestation
+  - name: Sign Attestation
+    type: call
+    node: "munus-node-1"
+    context_id: "{{ctx_id}}"
+    executor_public_key: "{{member_key}}"
+    method: "signAttestation"
+    args:
+      jobId: "{{JOB_ID}}"
+      inputHash: "{{job_result.inputHash}}"
+      outputHash: "{{job_result.outputHash}}"
+      timestamp: "{{job_result.timestamp}}"
+      workerAddress: "{{WORKER_ADDRESS}}"
+    outputs:
+      attestation: "signed_attestation"
+      signature: "signed_attestation.signature"
+      publicKey: "signed_attestation.publicKey"
+
+  # Save artifacts locally
+  - name: Save Outputs
+    type: script
+    target: local
+    inline: |
+      echo '{{job_result}}' > outputs.json
+      echo '{{signed_attestation}}' > attestation.json
+      echo "✅ Job outputs saved to outputs.json"
+      echo "✅ Attestation saved to attestation.json"
+      echo "📝 Output hash: {{job_result.outputHash}}"
+      echo "🔑 Signature: {{signed_attestation.signature}}"
+
+  # Optional: Verify attestation
+  - name: Verify Attestation
+    type: script
+    target: local
+    inline: |
+      node ../verify/verify-attestation.js attestation.json outputs.json
+      echo "✅ Attestation verified successfully"
+
