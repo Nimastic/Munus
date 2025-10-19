@@ -5,14 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:ai": "tsx watch src/ai-agent.ts",
     "start": "tsx src/index.ts",
+    "start:ai": "tsx src/ai-agent.ts",
     "build": "tsc",
     "test": "echo \"Add agent tests\""
   },
   "dependencies": {
-    "@xmtp/agent-sdk": "^0.0.3",
+    "@ai-sdk/openai": "^2.0.52",
+    "@xmtp/agent-sdk": "^0.0.17",
+    "ai": "^5.0.76",
+    "dotenv": "^16.4.1",
+    "openai": "^6.5.0",
     "viem": "^2.21.45",
-    "dotenv": "^16.4.1"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
@@ -20,4 +26,3 @@
     "typescript": "^5.3.3"
   }
 }
-

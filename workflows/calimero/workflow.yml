@@ -29,23 +29,20 @@ steps:
     type: wait
     seconds: 3
 
-  # Install WASM application
-  # Note: You'll need to build a simple WASM app or use a demo one
+  # Install REAL WASM application
   - name: Install Application
-    type: install
+    type: install_application
     node: "munus-node-1"
-    path: "./apps/job_processor.wasm"  # Your WASM app
+    path: "./apps/job_processor.wasm"
+    dev: true
     outputs:
       applicationId: "app_id"
 
   # Create execution context
   - name: Create Context
-    type: context
+    type: create_context
     node: "munus-node-1"
     application_id: "{{app_id}}"
-    params:
-      jobId: "{{JOB_ID}}"           # Injected from command line
-      resourceCID: "{{RESOURCE_CID}}" # IPFS CID of job inputs
     outputs:
       contextId: "ctx_id"
       memberPublicKey: "member_key"
@@ -56,45 +53,42 @@ steps:
     node: "munus-node-1"
     context_id: "{{ctx_id}}"
     executor_public_key: "{{member_key}}"
-    method: "processJob"
+    method: "process_job"
     args:
-      jobId: "{{JOB_ID}}"
-      inputCID: "{{RESOURCE_CID}}"
-      taskType: "{{TASK_TYPE}}"  # e.g., "parse_invoice", "generate_report"
+      job_id: "{{JOB_ID}}"
+      input_cid: "{{RESOURCE_CID}}"
+      task_type: "{{TASK_TYPE}}"
+      worker_address: "{{WORKER_ADDRESS}}"
     outputs:
-      result: "job_result"
-      outputHash: "job_result.outputHash"
-      success: "job_result.success"
+      result: output
 
-  # Generate signed attestation
+  # Generate signed attestation (REAL Ed25519)
   - name: Sign Attestation
     type: call
     node: "munus-node-1"
     context_id: "{{ctx_id}}"
     executor_public_key: "{{member_key}}"
-    method: "signAttestation"
+    method: "sign_attestation"
     args:
-      jobId: "{{JOB_ID}}"
-      inputHash: "{{job_result.inputHash}}"
-      outputHash: "{{job_result.outputHash}}"
-      timestamp: "{{job_result.timestamp}}"
-      workerAddress: "{{WORKER_ADDRESS}}"
+      job_id: "{{JOB_ID}}"
+      input_hash: "{{result.inputHash}}"
+      output_hash: "{{result.outputHash}}"
+      timestamp: "{{result.timestamp}}"
+      worker_address: "{{WORKER_ADDRESS}}"
     outputs:
-      attestation: "signed_attestation"
-      signature: "signed_attestation.signature"
-      publicKey: "signed_attestation.publicKey"
+      attestation: output
 
   # Save artifacts locally
   - name: Save Outputs
     type: script
     target: local
     inline: |
-      echo '{{job_result}}' > outputs.json
-      echo '{{signed_attestation}}' > attestation.json
+      echo '{{result}}' > outputs.json
+      echo '{{attestation}}' > attestation.json
       echo "✅ Job outputs saved to outputs.json"
       echo "✅ Attestation saved to attestation.json"
-      echo "📝 Output hash: {{job_result.outputHash}}"
-      echo "🔑 Signature: {{signed_attestation.signature}}"
+      echo "📝 Output hash: {{result.output_hash}}"
+      echo "🔑 Signature: {{attestation.signature}}"
 
   # Optional: Verify attestation
   - name: Verify Attestation

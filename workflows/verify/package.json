@@ -3,16 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Ed25519 attestation verification scripts",
+  "description": "REAL Ed25519 attestation verification",
   "scripts": {
-    "verify": "node verify-attestation.js"
+    "verify": "node verify-attestation.js",
+    "postinstall": "echo '✅ Real Ed25519 verification ready'"
   },
-  "dependencies": {},
-  "devDependencies": {},
-  "optionalDependencies": {
+  "dependencies": {
     "tweetnacl": "^1.0.3",
-    "bs58": "^5.0.0",
-    "@noble/ed25519": "^2.0.0"
-  }
+    "bs58": "^5.0.0"
+  },
+  "devDependencies": {}
 }
 

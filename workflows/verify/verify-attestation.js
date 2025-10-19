@@ -1,18 +1,14 @@
 #!/usr/bin/env node
 /**
- * Verify Ed25519 attestation from Calimero workflow
+ * Verify REAL Ed25519 attestation from Calimero workflow
  * 
  * Usage:
  *   node verify-attestation.js <attestation.json> [outputs.json]
  */
 
-import { createHash } from 'crypto';
+import bs58 from 'bs58';
 import { readFileSync } from 'fs';
-
-// For a real implementation with actual Ed25519 verification:
-// npm install tweetnacl bs58
-// import nacl from 'tweetnacl';
-// import bs58 from 'bs58';
+import nacl from 'tweetnacl';
 
 function loadJSON(path) {
   try {
@@ -23,18 +19,26 @@ function loadJSON(path) {
   }
 }
 
-function keccak256(data) {
-  // For EVM-style keccak256 (use @noble/hashes or viem in production)
-  const hash = createHash('sha256'); // Simplified for demo
-  hash.update(data);
-  return '0x' + hash.digest('hex');
+function decodeKey(encoded) {
+  // Try hex first
+  if (encoded.startsWith('0x')) {
+    return Buffer.from(encoded.slice(2), 'hex');
+  }
+  
+  // Try base58 (Calimero default)
+  try {
+    return bs58.decode(encoded);
+  } catch {
+    // Fall back to base64
+    return Buffer.from(encoded, 'base64');
+  }
 }
 
 function verifyAttestation(attestation, outputs) {
-  console.log('🔍 Verifying Calimero attestation...\n');
+  console.log('🔍 Verifying Calimero attestation with REAL Ed25519...\n');
 
   // 1. Check required fields
-  const required = ['jobId', 'inputHash', 'outputHash', 'workerPublicKey', 'signature', 'timestamp'];
+  const required = ['job_id', 'input_hash', 'output_hash', 'worker_public_key', 'signature', 'timestamp'];
   const missing = required.filter(field => !attestation[field]);
   
   if (missing.length > 0) {
@@ -43,75 +47,81 @@ function verifyAttestation(attestation, outputs) {
   }
 
   console.log('✅ All required fields present');
-  console.log(`   Job ID: ${attestation.jobId}`);
-  console.log(`   Worker: ${attestation.workerAddress || 'N/A'}`);
+  console.log(`   Job ID: ${attestation.job_id}`);
+  console.log(`   Worker: ${attestation.worker_address || 'N/A'}`);
   console.log(`   Timestamp: ${new Date(attestation.timestamp * 1000).toISOString()}`);
   console.log('');
 
   // 2. Verify output hash matches (if outputs provided)
   if (outputs) {
-    if (attestation.outputHash !== outputs.outputHash) {
+    const expectedHash = outputs.output_hash || outputs.outputHash;
+    const actualHash = attestation.output_hash || attestation.outputHash;
+    
+    if (actualHash !== expectedHash) {
       console.error('❌ Output hash mismatch!');
-      console.error(`   Expected: ${attestation.outputHash}`);
-      console.error(`   Got: ${outputs.outputHash}`);
+      console.error(`   Expected: ${expectedHash}`);
+      console.error(`   Got: ${actualHash}`);
       return false;
     }
     console.log('✅ Output hash matches');
   }
 
-  // 3. Verify signature format
-  if (!attestation.signature || attestation.signature.length < 40) {
-    console.error('❌ Invalid signature format');
-    return false;
-  }
-  console.log('✅ Signature format valid');
-  console.log('');
-
-  // 4. Reconstruct canonical payload
+  // 3. Reconstruct canonical payload (MUST match Rust signing)
   const payload = JSON.stringify({
-    jobId: attestation.jobId,
-    inputHash: attestation.inputHash,
-    outputHash: attestation.outputHash,
-    workerPublicKey: attestation.workerPublicKey,
+    jobId: attestation.job_id,
+    inputHash: attestation.input_hash,
+    outputHash: attestation.output_hash,
+    workerPublicKey: attestation.worker_public_key,
     timestamp: attestation.timestamp,
-  }, null, 0); // No whitespace for canonical form
+  });
 
   console.log('📝 Canonical payload:');
   console.log(`   ${payload.slice(0, 100)}...`);
   console.log('');
 
-  // 5. Verify Ed25519 signature
-  // NOTE: For hackathon demo, we skip actual crypto verification
-  // In production, use tweetnacl or @noble/ed25519
-  
-  /* Real verification would look like:
+  // 4. REAL Ed25519 signature verification
   try {
-    const pubkeyBytes = decodeKey(attestation.workerPublicKey);
-    const signatureBytes = decodeKey(attestation.signature);
-    const messageBytes = new TextEncoder().encode(payload);
+    console.log('🔐 Verifying Ed25519 signature...');
     
+    const messageBytes = new TextEncoder().encode(payload);
+    const signatureBytes = decodeKey(attestation.signature);
+    const pubkeyBytes = decodeKey(attestation.worker_public_key);
+
+    // Validate key sizes
+    if (pubkeyBytes.length !== 32) {
+      console.error(`❌ Invalid public key length: ${pubkeyBytes.length} (expected 32)`);
+      return false;
+    }
+
+    if (signatureBytes.length !== 64) {
+      console.error(`❌ Invalid signature length: ${signatureBytes.length} (expected 64)`);
+      return false;
+    }
+
+    // Verify signature using tweetnacl (libsodium)
     const valid = nacl.sign.detached.verify(
       messageBytes,
       signatureBytes,
       pubkeyBytes
     );
-    
+
     if (!valid) {
-      console.error('❌ Signature verification failed');
+      console.error('❌ Signature verification FAILED');
+      console.error('   The signature does not match the payload');
       return false;
     }
+
+    console.log('✅ Ed25519 signature VALID');
+    console.log('   Cryptographic verification passed');
   } catch (error) {
     console.error('❌ Crypto error:', error.message);
+    console.error('   Stack:', error.stack);
     return false;
   }
-  */
 
-  // Demo: Just check signature exists and has reasonable format
-  console.log('⚠️  Signature verification: SIMULATED (use tweetnacl in production)');
-  console.log('✅ Signature structure valid (demo mode)');
   console.log('');
 
-  // 6. Additional checks
+  // 5. Additional checks
   const age = Math.floor(Date.now() / 1000) - attestation.timestamp;
   if (age > 7 * 24 * 60 * 60) {
     console.warn(`⚠️  Warning: Attestation is ${Math.floor(age / 86400)} days old`);
@@ -122,23 +132,18 @@ function verifyAttestation(attestation, outputs) {
     return false;
   }
 
-  return true;
-}
+  console.log('✅ Timestamp valid');
 
-function decodeKey(encoded) {
-  // Simplified decoder - use bs58.decode() for real base58
-  // Or handle hex if your keys are hex-encoded
-  if (encoded.startsWith('0x')) {
-    return Buffer.from(encoded.slice(2), 'hex');
-  }
-  // Assume base58 (would use bs58 library)
-  return Buffer.from(encoded, 'base64');
+  return true;
 }
 
 // Main
 const args = process.argv.slice(2);
 if (args.length === 0) {
   console.error('Usage: node verify-attestation.js <attestation.json> [outputs.json]');
+  console.error('');
+  console.error('Example:');
+  console.error('  node verify-attestation.js attestation.json outputs.json');
   process.exit(1);
 }
 
@@ -151,23 +156,28 @@ console.log('══════════════════════�
 if (valid) {
   console.log('✅ ATTESTATION VALID');
   console.log('');
-  console.log('This attestation can be trusted as proof that:');
-  console.log(`  • Worker ${attestation.workerAddress || 'with pubkey ' + attestation.workerPublicKey.slice(0, 16) + '...'}`);
-  console.log(`  • Processed job #${attestation.jobId}`);
-  console.log(`  • Produced output with hash ${attestation.outputHash.slice(0, 16)}...`);
-  console.log(`  • At ${new Date(attestation.timestamp * 1000).toISOString()}`);
+  console.log('This attestation is cryptographically verified:');
+  console.log(`  • Worker: ${attestation.worker_address || attestation.worker_public_key.slice(0, 16) + '...'}`);
+  console.log(`  • Processed job #${attestation.job_id}`);
+  console.log(`  • Output hash: ${attestation.output_hash.slice(0, 16)}...`);
+  console.log(`  • Timestamp: ${new Date(attestation.timestamp * 1000).toISOString()}`);
   console.log('');
   console.log('🎯 Submit to miniapp:');
-  console.log(`   Artifact Hash: ${attestation.outputHash}`);
+  console.log(`   Artifact Hash: ${attestation.output_hash}`);
   console.log(`   Attestation CID: (pin ${args[0]} to IPFS first)`);
+  console.log('');
+  console.log('IPFS upload command:');
+  console.log(`   npx web3.storage put ${args[0]}`);
   process.exit(0);
 } else {
   console.log('❌ ATTESTATION INVALID');
   console.log('');
-  console.log('Do not trust this attestation. Possible issues:');
-  console.log('  • Signature mismatch');
-  console.log('  • Tampered data');
+  console.log('⚠️  DO NOT TRUST THIS ATTESTATION');
+  console.log('');
+  console.log('Possible issues:');
+  console.log('  • Signature does not match payload');
+  console.log('  • Data has been tampered with');
   console.log('  • Invalid timestamp');
+  console.log('  • Wrong public key');
   process.exit(1);
 }
-

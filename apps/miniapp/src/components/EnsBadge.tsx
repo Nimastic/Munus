@@ -28,7 +28,7 @@ export function EnsBadge({ address, showAvatar = true, showAddress = true, showC
   });
 
   const { data: avatar } = useEnsAvatar({
-    name: ensName,
+    name: ensName ?? undefined,
     chainId: 1,
   });
 
