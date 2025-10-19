@@ -1,12 +1,8 @@
 "use client";
 
-import { wagmiConfig } from "@/lib/wagmi";
-import { CivicAuthProvider } from "@civic/auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { CivicAuthProvider } from "@civic/auth-web3/react";
+import { base, baseSepolia } from "viem/chains";
 import { ReactNode } from "react";
-import { WagmiProvider } from "wagmi";
-
-const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: ReactNode }) {
   const civicClientId = process.env.NEXT_PUBLIC_CIVIC_CLIENT_ID;
@@ -30,6 +26,8 @@ export function Providers({ children }: { children: ReactNode }) {
               Civic Dashboard
             </a>
             {" "}and add it to <code className="bg-red-100 px-1 py-0.5 rounded">.env.local</code>
+            <br />
+            <strong>Make sure to enable "Web3 wallet" option in the Civic dashboard!</strong>
           </p>
         </div>
       </div>
@@ -37,12 +35,12 @@ export function Providers({ children }: { children: ReactNode }) {
   }
 
   return (
-    <CivicAuthProvider clientId={civicClientId}>
-      <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>
-          {children}
-        </WagmiProvider>
-      </QueryClientProvider>
+    <CivicAuthProvider 
+      clientId={civicClientId}
+      chain={baseSepolia} // Default to Base Sepolia testnet
+      chains={[base, baseSepolia]} // Support both Base mainnet and testnet
+    >
+      {children}
     </CivicAuthProvider>
   );
 }

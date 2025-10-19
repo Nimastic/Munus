@@ -10,12 +10,11 @@ import {
   publicClient,
   toBytes32,
 } from "@/lib/contracts";
-import { UserButton } from "@civic/auth/react";
+import { UserButton, useWallet } from "@civic/auth-web3/react";
 import { ArrowLeft, Ban, CheckCircle2, Clock, Loader2, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { type Address } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { type Address, encodeFunctionData } from "viem";
 
 interface Job {
   id: number;
@@ -36,9 +35,11 @@ export default function JobDetailPage({
   params: { id: string };
 }) {
   const jobId = parseInt(params.id);
-  const { address } = useAccount();
+  const { wallet, address } = useWallet({ type: "ethereum" });
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPending, setIsPending] = useState(false);
+  const [txSuccess, setTxSuccess] = useState(false);
 
   // Forms
   const [artifactHash, setArtifactHash] = useState("");
@@ -65,14 +66,9 @@ export default function JobDetailPage({
     setArtifactHash(hash);
   }
 
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
   useEffect(() => {
     loadJob();
-  }, [jobId, isSuccess]);
+  }, [jobId, txSuccess]);
 
   async function loadJob() {
     try {
@@ -102,47 +98,116 @@ export default function JobDetailPage({
     }
   }
 
-  function handleAccept() {
-    writeContract({
-      address: ESCROW_ADDRESS,
-      abi: escrowAbi,
-      functionName: "accept",
-      args: [BigInt(jobId)],
-    });
+  async function handleAccept() {
+    if (!wallet) {
+      alert("Please login with Civic to get your embedded wallet");
+      return;
+    }
+
+    try {
+      setIsPending(true);
+      await wallet.sendTransaction({
+        account: wallet.account!,
+        chain: wallet.chain,
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: escrowAbi,
+          functionName: "accept",
+          args: [BigInt(jobId)],
+        }),
+      });
+      setTxSuccess(!txSuccess);
+      await loadJob();
+    } catch (error: any) {
+      console.error("Error accepting job:", error);
+      alert(`Error: ${error.message || "Transaction failed"}`);
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function handleDeliver() {
+  async function handleDeliver() {
     if (!artifactHash) {
       alert("Please provide an artifact hash (proof of work)");
       return;
     }
 
-    writeContract({
-      address: ESCROW_ADDRESS,
-      abi: escrowAbi,
-      functionName: "deliver",
-      args: [BigInt(jobId), toBytes32(artifactHash), attestationCID || ""],
-    });
+    if (!wallet) {
+      alert("Please login with Civic to get your embedded wallet");
+      return;
+    }
+
+    try {
+      setIsPending(true);
+      await wallet.sendTransaction({
+        account: wallet.account!,
+        chain: wallet.chain,
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: escrowAbi,
+          functionName: "deliver",
+          args: [BigInt(jobId), toBytes32(artifactHash), attestationCID || ""],
+        }),
+      });
+      setTxSuccess(!txSuccess);
+      setShowDeliverForm(false);
+      await loadJob();
+    } catch (error: any) {
+      console.error("Error delivering job:", error);
+      alert(`Error: ${error.message || "Transaction failed"}`);
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function handleRelease() {
-    if (!job) return;
-    writeContract({
-      address: ESCROW_ADDRESS,
-      abi: escrowAbi,
-      functionName: "release",
-      args: [BigInt(jobId), job.assignee as Address],
-    });
+  async function handleRelease() {
+    if (!job || !wallet) return;
+    
+    try {
+      setIsPending(true);
+      await wallet.sendTransaction({
+        account: wallet.account!,
+        chain: wallet.chain,
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: escrowAbi,
+          functionName: "release",
+          args: [BigInt(jobId), job.assignee as Address],
+        }),
+      });
+      setTxSuccess(!txSuccess);
+      await loadJob();
+    } catch (error: any) {
+      console.error("Error releasing payment:", error);
+      alert(`Error: ${error.message || "Transaction failed"}`);
+    } finally {
+      setIsPending(false);
+    }
   }
 
-  function handleRefund() {
-    if (!job) return;
-    writeContract({
-      address: ESCROW_ADDRESS,
-      abi: escrowAbi,
-      functionName: "refund",
-      args: [BigInt(jobId), job.creator as Address],
-    });
+  async function handleRefund() {
+    if (!job || !wallet) return;
+    
+    try {
+      setIsPending(true);
+      await wallet.sendTransaction({
+        account: wallet.account!,
+        chain: wallet.chain,
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: escrowAbi,
+          functionName: "refund",
+          args: [BigInt(jobId), job.creator as Address],
+        }),
+      });
+      setTxSuccess(!txSuccess);
+      await loadJob();
+    } catch (error: any) {
+      console.error("Error refunding job:", error);
+      alert(`Error: ${error.message || "Transaction failed"}`);
+    } finally {
+      setIsPending(false);
+    }
   }
 
   if (loading) {
@@ -305,10 +370,10 @@ export default function JobDetailPage({
           {canAccept && (
             <button
               onClick={handleAccept}
-              disabled={isPending || isConfirming}
+              disabled={isPending}
               className="w-full mb-3 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
             >
-              {isPending || isConfirming ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+              {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
               Accept Job
             </button>
           )}
@@ -392,10 +457,10 @@ export default function JobDetailPage({
                 </button>
                 <button
                   onClick={handleDeliver}
-                  disabled={isPending || isConfirming}
+                  disabled={isPending}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isPending || isConfirming ? "Submitting..." : "Submit"}
+                  {isPending ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </div>
@@ -405,10 +470,10 @@ export default function JobDetailPage({
           {canRelease && (
             <button
               onClick={handleRelease}
-              disabled={isPending || isConfirming}
+              disabled={isPending}
               className="w-full mb-3 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
             >
-              {isPending || isConfirming ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+              {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
               Approve & Release Payment
             </button>
           )}
@@ -417,10 +482,10 @@ export default function JobDetailPage({
           {canRefund && (
             <button
               onClick={handleRefund}
-              disabled={isPending || isConfirming}
+              disabled={isPending}
               className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
             >
-              {isPending || isConfirming ? <Loader2 className="w-5 h-5 animate-spin" /> : <Ban className="w-5 h-5" />}
+              {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Ban className="w-5 h-5" />}
               Refund (Expired)
             </button>
           )}

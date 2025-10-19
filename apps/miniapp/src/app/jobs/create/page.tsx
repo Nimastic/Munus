@@ -1,37 +1,34 @@
 "use client";
 
 import { CHAIN, DEFAULT_USDC, ESCROW_ADDRESS, escrowAbi } from "@/lib/contracts";
-import { UserButton } from "@civic/auth/react";
+import { UserButton, useWallet } from "@civic/auth-web3/react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { parseUnits, type Address } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { parseUnits, type Address, encodeFunctionData } from "viem";
 
 export default function CreateJobPage() {
   const router = useRouter();
-  const { address } = useAccount();
+  const { wallet, address } = useWallet({ type: "ethereum" });
   const [token, setToken] = useState<string>("0x0000000000000000000000000000000000000000"); // ETH by default
   const [amount, setAmount] = useState<string>("0.01");
   const [deadlineHours, setDeadlineHours] = useState<string>("24");
   const [description, setDescription] = useState<string>("");
   const [step, setStep] = useState<"form" | "approving" | "creating" | "success">("form");
-
-  const { writeContract, data: hash, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const [txHash, setTxHash] = useState<string>("");
+  const [isPending, setIsPending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!address) {
-      alert("Please connect your wallet");
+    if (!address || !wallet) {
+      alert("Please login with Civic to get your embedded wallet");
       return;
     }
 
     try {
+      setIsPending(true);
       const isNative = token === "0x0000000000000000000000000000000000000000";
       const decimals = isNative ? 18 : 6; // ETH has 18, USDC has 6
       const amountWei = parseUnits(amount, decimals);
@@ -41,37 +38,44 @@ export default function CreateJobPage() {
       // Skipping approval step for simplicity - assume ETH for demo
       if (!isNative) {
         alert("ERC-20 tokens require approval first. Use ETH for this demo.");
+        setIsPending(false);
         return;
       }
 
       setStep("creating");
 
-      // Create job
-      writeContract({
-        address: ESCROW_ADDRESS,
-        abi: escrowAbi,
-        functionName: "createJob",
-        args: [
-          token as Address,
-          amountWei,
-          deadline,
-          description || "Job posted via Munus miniapp",
-        ],
+      // Create job using Civic embedded wallet
+      const hash = await wallet.sendTransaction({
+        account: wallet.account!,
+        chain: wallet.chain,
+        to: ESCROW_ADDRESS,
+        data: encodeFunctionData({
+          abi: escrowAbi,
+          functionName: "createJob",
+          args: [
+            token as Address,
+            amountWei,
+            deadline,
+            description || "Job posted via Munus miniapp",
+          ],
+        }),
         value: isNative ? amountWei : 0n,
-        chainId: CHAIN.id,
       });
+
+      setTxHash(hash);
+      setStep("success");
+      
+      // Wait for confirmation and redirect
+      setTimeout(() => {
+        router.push("/jobs");
+      }, 2000);
     } catch (error: any) {
       console.error("Error creating job:", error);
       alert(`Error: ${error.message || "Transaction failed"}`);
       setStep("form");
+    } finally {
+      setIsPending(false);
     }
-  }
-
-  // Handle success
-  if (isSuccess) {
-    setTimeout(() => {
-      router.push("/jobs");
-    }, 2000);
   }
 
   return (
@@ -93,7 +97,7 @@ export default function CreateJobPage() {
           <p className="text-gray-600 mt-1">Post a new paid task for your team</p>
         </div>
 
-        {step === "success" || isSuccess ? (
+        {step === "success" ? (
           <div className="bg-white rounded-lg p-8 text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
@@ -217,10 +221,10 @@ export default function CreateJobPage() {
               </Link>
               <button
                 type="submit"
-                disabled={step !== "form" || isPending || isConfirming}
+                disabled={step !== "form" || isPending}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {isPending || isConfirming ? (
+                {isPending ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     {step === "approving" ? "Approving..." : "Creating..."}

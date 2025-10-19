@@ -2,11 +2,10 @@
 
 import { EnsBadge } from "@/components/EnsBadge";
 import { ESCROW_ADDRESS, escrowAbi, formatAmount, JobState, JobStateLabels, publicClient } from "@/lib/contracts";
-import { UserButton } from "@civic/auth/react";
+import { UserButton, useWallet } from "@civic/auth-web3/react";
 import { AlertCircle, Clock, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
 
 interface Job {
   id: number;
@@ -20,7 +19,7 @@ interface Job {
 }
 
 export default function JobsPage() {
-  const { address } = useAccount();
+  const { address } = useWallet({ type: "ethereum" });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "open" | "mine">("all");

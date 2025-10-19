@@ -1,17 +1,14 @@
 "use client";
 
 import { EnsBadge } from "@/components/EnsBadge";
-import { UserButton, useUser } from "@civic/auth/react";
+import { UserButton, useUser, useWallet } from "@civic/auth-web3/react";
 import { MessageSquare, Shield, Wallet, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export default function Home() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
   const { user } = useUser();
+  const { wallet, address } = useWallet({ type: "ethereum" });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -21,6 +18,9 @@ export default function Home() {
   if (!mounted) {
     return null; // Prevent hydration mismatch
   }
+
+  // Civic embedded wallet is automatically created when user logs in
+  const isConnected = !!address;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -32,24 +32,14 @@ export default function Home() {
             <h1 className="text-xl font-bold">Munus</h1>
           </div>
           <div className="flex items-center gap-3">
-            {/* Civic Auth Button */}
+            {/* Civic Auth Button - Embedded wallet is created automatically on login */}
             <UserButton />
-            {/* Wallet Connect Button */}
-            {isConnected ? (
-              <button
-                onClick={() => disconnect()}
-                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Disconnect Wallet
-              </button>
-            ) : user ? (
-              <button
-                onClick={() => connect({ connector: connectors[0] })}
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Connect Wallet
-              </button>
-            ) : null}
+            {isConnected && address && (
+              <div className="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5" />
+                <span>{address.slice(0, 6)}...{address.slice(-4)}</span>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -66,63 +56,55 @@ export default function Home() {
           </p>
 
           {!user ? (
-            /* Step 1: Login with Civic */
+            /* Step 1: Login with Civic - Embedded Wallet Created Automatically */
             <div className="bg-white rounded-xl shadow-lg p-8 space-y-4">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Shield className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-semibold">Step 1: Login with Civic</h2>
+                <h2 className="text-xl font-semibold">Login with Civic</h2>
               </div>
               <p className="text-gray-600">
-                Sign in with Civic to get started. Civic is our ONLY SSO provider
+                Sign in with Civic to get started. An embedded Web3 wallet will be created automatically for you!
               </p>
               <div className="flex justify-center pt-4">
                 <UserButton />
               </div>
-              <p className="text-xs text-gray-500 text-center">
-                ✅ Civic Auth ensures secure, compliant authentication
-              </p>
-            </div>
-          ) : !isConnected ? (
-            /* Step 2: Connect Wallet */
-            <div className="bg-white rounded-xl shadow-lg p-8 space-y-4">
-              <div className="flex items-center justify-center gap-2 text-sm text-green-600 mb-4">
-                <Shield className="w-4 h-4" />
-                <span>✓ Logged in with Civic (only SSO)</span>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                <p className="text-xs text-blue-800 font-semibold">✨ What you get:</p>
+                <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                  <li>Secure authentication via Civic SSO</li>
+                  <li>Non-custodial embedded wallet (auto-created)</li>
+                  <li>No seed phrases to remember</li>
+                  <li>Support for 18+ EVM chains including Base</li>
+                </ul>
               </div>
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Wallet className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-semibold">Step 2: Connect Wallet</h2>
-              </div>
-              <p className="text-gray-600">
-                Now connect your Web3 wallet for transactions. Use MetaMask, Coinbase Wallet, or any Web3 wallet!
-              </p>
-              <button
-                onClick={() => connect({ connector: connectors[0] })}
-                className="w-full px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-              >
-                Connect Wallet
-              </button>
-              <p className="text-xs text-gray-500 text-center">
-                💡 Make sure you're on <strong>Base Sepolia</strong> testnet
-              </p>
             </div>
           ) : (
-            /* Step 3: Ready to Use */
+            /* All set - User is logged in with embedded wallet */
             <div className="bg-white rounded-xl shadow-lg p-8 space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2 text-sm text-green-600">
                   <Shield className="w-4 h-4" />
-                  <span>✓ Logged in with Civic (only SSO)</span>
+                  <span>✓ Logged in with Civic</span>
                 </div>
                 <div className="flex items-center justify-center gap-2 text-sm text-green-600">
                   <Wallet className="w-4 h-4" />
-                  <span>✓ Wallet connected</span>
+                  <span>✓ Embedded wallet ready</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-2 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-center gap-2 p-4 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200">
                 <Wallet className="w-5 h-5 text-blue-600" />
-                <EnsBadge address={address!} />
+                {address ? (
+                  <EnsBadge address={address as `0x${string}`} />
+                ) : (
+                  <span className="text-sm text-gray-600">Loading wallet...</span>
+                )}
+              </div>
+
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-xs text-purple-800 text-center">
+                  🎉 <strong>Civic Embedded Wallet:</strong> Non-custodial, no seed phrases, works across 18+ EVM chains!
+                </p>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">

@@ -2,9 +2,10 @@
 
 import { Check, Copy } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
-import { type Address } from "viem";
-import { useEnsAvatar, useEnsName } from "wagmi";
+import { useEffect, useState } from "react";
+import { type Address, createPublicClient, http } from "viem";
+import { base, mainnet } from "viem/chains";
+import { normalize } from "viem/ens";
 
 interface EnsBadgeProps {
   address: Address;
@@ -13,27 +14,70 @@ interface EnsBadgeProps {
   showCopy?: boolean;
 }
 
+// Public clients for ENS resolution
+const mainnetClient = createPublicClient({
+  chain: mainnet,
+  transport: http(),
+});
+
+const baseClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
+
 /**
- * Display ENS name and avatar for an address
- * Falls back to truncated address if no ENS name
- * 
- * Note: ENS resolution always reads from Ethereum L1 (chainId: 1)
+ * Display ENS/Basename for an address
+ * Tries both Ethereum ENS and Base Basename
+ * Falls back to truncated address if no name found
  */
 export function EnsBadge({ address, showAvatar = true, showAddress = true, showCopy = true }: EnsBadgeProps) {
   const [copied, setCopied] = useState(false);
+  const [ensName, setEnsName] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const { data: ensName } = useEnsName({
-    address,
-    chainId: 1, // Always query mainnet for ENS
-  });
+  useEffect(() => {
+    async function resolveName() {
+      try {
+        // Try Base Basename first (jeriel.base.eth resolves on Base)
+        try {
+          const basename = await baseClient.getEnsName({ address });
+          if (basename) {
+            setEnsName(basename);
+            // Try to get avatar from Base
+            try {
+              const baseAvatar = await baseClient.getEnsAvatar({ name: normalize(basename) });
+              setAvatar(baseAvatar);
+            } catch {}
+            setLoading(false);
+            return;
+          }
+        } catch {}
 
-  const { data: avatar } = useEnsAvatar({
-    name: ensName || undefined,
-    chainId: 1,
-  });
+        // Fallback: Try Ethereum ENS
+        try {
+          const ethName = await mainnetClient.getEnsName({ address });
+          if (ethName) {
+            setEnsName(ethName);
+            // Try to get avatar from Ethereum
+            try {
+              const ethAvatar = await mainnetClient.getEnsAvatar({ name: normalize(ethName) });
+              setAvatar(ethAvatar);
+            } catch {}
+          }
+        } catch {}
+      } catch (error) {
+        console.error("Error resolving ENS/Basename:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    resolveName();
+  }, [address]);
 
   const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
-  const displayName = ensName || shortAddress;
+  const displayName = loading ? shortAddress : (ensName || shortAddress);
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(address);
